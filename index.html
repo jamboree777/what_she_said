@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화자 분리 훈련 녹음기</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2196f3;
+        }
+        .recording-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .record-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .record-btn:hover {
+            background-color: #d32f2f;
+        }
+        .play-btn {
+            background-color: #4caf50;
+            color: white;
+        }
+        .play-btn:hover {
+            background-color: #388e3c;
+        }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            color: #666;
+        }
+        .recordings {
+            margin-top: 20px;
+        }
+        .recording-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .transcript-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .transcript-item {
+            position: relative;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .transcript-item:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .transcript-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .transcript-time {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .transcript-text {
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        .download-btn {
+            background-color: #2196f3;
+            color: white;
+            margin-top: 10px;
+        }
+        .download-btn:hover {
+            background-color: #1976d2;
+        }
+        .speaker-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .speaker-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .speaker-tag {
+            padding: 5px 10px;
+            background-color: #e3f2fd;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .speaker-tag.selected {
+            background-color: #2196f3;
+            color: white;
+        }
+        .speaker-select {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .confidence-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .confidence-high {
+            background-color: #4caf50;
+        }
+        .confidence-medium {
+            background-color: #ff9800;
+        }
+        .confidence-low {
+            background-color: #f44336;
+        }
+        .feedback-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .feedback-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .feedback-btn.correct {
+            background-color: #4caf50;
+            color: white;
+        }
+        .feedback-btn.incorrect {
+            background-color: #f44336;
+            color: white;
+        }
+        .training-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .training-btn {
+            background-color: #9c27b0;
+            color: white;
+        }
+        .training-btn:hover {
+            background-color: #7b1fa2;
+        }
+        .analyze-btn {
+            background-color: #2196f3;
+            color: white;
+            margin-left: 10px;
+        }
+        .analyze-btn:hover {
+            background-color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>화자 분리 훈련 녹음기</h1>
+        
+        <div class="recording-controls">
+            <button class="record-btn" id="recordBtn">녹음 시작</button>
+            <button class="play-btn" id="playBtn" disabled>재생</button>
+            <button class="download-btn" id="downloadBtn" disabled>녹취록 다운로드</button>
+            <button class="training-btn" id="trainingBtn">화자 훈련</button>
+        </div>
+        
+        <div class="status" id="status">준비됨</div>
+        
+        <div class="speaker-section" id="speakerSection">
+            <h2>화자 목록</h2>
+            <div class="speaker-list" id="speakerList">
+                <!-- 화자 태그들이 여기에 추가됩니다 -->
+                </div>
+            <button class="add-speaker-btn" id="addSpeakerBtn">화자 추가</button>
+                </div>
+        
+        <div class="transcript-section" id="transcriptSection">
+            <h2>녹취록</h2>
+            <div id="transcriptList">
+                <!-- 녹취록이 여기에 표시됩니다 -->
+            </div>
+        </div>
+        
+        <div class="recordings" id="recordings">
+            <!-- 녹음 목록이 여기에 표시됩니다 -->
+        </div>
+    </div>
+
+    <script>
+        const recordBtn = document.getElementById('recordBtn');
+        const playBtn = document.getElementById('playBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const status = document.getElementById('status');
+        const recordings = document.getElementById('recordings');
+        const transcriptList = document.getElementById('transcriptList');
+        
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let transcripts = [];
+        let speakers = new Set();
+        let currentSpeaker = null;
+        let isTrainingMode = false;
+        
+        // 음성 인식 초기화
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'ko-KR';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        
+        recognition.onresult = (event) => {
+            const transcript = event.results[event.results.length - 1][0].transcript;
+            const confidence = event.results[event.results.length - 1][0].confidence;
+            
+            if (event.results[event.results.length - 1].isFinal) {
+                addTranscript(transcript, confidence);
+            }
+        };
+        
+        recognition.onerror = (event) => {
+            console.error('음성 인식 오류:', event.error);
+            status.textContent = '음성 인식 오류: ' + event.error;
+        };
+        
+        // 화자 추가 버튼 이벤트 리스너
+        document.getElementById('addSpeakerBtn').addEventListener('click', () => {
+            const speakerName = prompt('화자 이름을 입력하세요:');
+            if (speakerName && !speakers.has(speakerName)) {
+                speakers.add(speakerName);
+                updateSpeakerList();
+            }
+        });
+        
+        // 화자 훈련 버튼 이벤트 리스너
+        document.getElementById('trainingBtn').addEventListener('click', () => {
+            isTrainingMode = !isTrainingMode;
+            const btn = document.getElementById('trainingBtn');
+            if (isTrainingMode) {
+                btn.textContent = '훈련 종료';
+                btn.style.backgroundColor = '#f44336';
+                status.textContent = '화자 훈련 모드';
+            } else {
+                btn.textContent = '화자 훈련';
+                btn.style.backgroundColor = '#9c27b0';
+                status.textContent = '준비됨';
+            }
+        });
+        
+        function updateSpeakerList() {
+            const speakerList = document.getElementById('speakerList');
+            speakerList.innerHTML = '';
+            
+            speakers.forEach(speaker => {
+                const speakerTag = document.createElement('div');
+                speakerTag.className = 'speaker-tag';
+                speakerTag.innerHTML = `
+                    <span>${speaker}</span>
+                    <button onclick="removeSpeaker('${speaker}')" style="background: none; border: none; color: inherit; cursor: pointer;">×</button>
+                `;
+                speakerTag.addEventListener('click', () => {
+                    currentSpeaker = speaker;
+                    document.querySelectorAll('.speaker-tag').forEach(tag => tag.classList.remove('selected'));
+                    speakerTag.classList.add('selected');
+                });
+                speakerList.appendChild(speakerTag);
+            });
+        }
+        
+        function removeSpeaker(speaker) {
+            speakers.delete(speaker);
+            updateSpeakerList();
+        }
+        
+        function addTranscript(text, confidence) {
+            const timestamp = new Date().toLocaleTimeString();
+            const transcriptItem = document.createElement('div');
+            transcriptItem.className = 'transcript-item';
+            
+            // 신뢰도에 따른 표시기 색상 설정
+            let confidenceClass = 'confidence-low';
+            if (confidence > 0.8) confidenceClass = 'confidence-high';
+            else if (confidence > 0.6) confidenceClass = 'confidence-medium';
+            
+            transcriptItem.innerHTML = `
+                <div class="transcript-header">
+                    <span class="transcript-time">${timestamp}</span>
+                    <span class="confidence-indicator ${confidenceClass}"></span>
+                    <span class="confidence">정확도: ${Math.round(confidence * 100)}%</span>
+                </div>
+                <div class="transcript-text">${text}</div>
+                <select class="speaker-select">
+                    <option value="">화자 선택</option>
+                    ${Array.from(speakers).map(speaker => 
+                        `<option value="${speaker}">${speaker}</option>`
+                    ).join('')}
+                </select>
+                <div class="feedback-section">
+                    <div class="feedback-buttons">
+                        <button class="feedback-btn correct" onclick="provideFeedback(this, true)">정확함</button>
+                        <button class="feedback-btn incorrect" onclick="provideFeedback(this, false)">부정확함</button>
+                    </div>
+                </div>
+            `;
+            
+            transcriptList.prepend(transcriptItem);
+            downloadBtn.disabled = false;
+        }
+        
+        function provideFeedback(button, isCorrect) {
+            const transcriptItem = button.closest('.transcript-item');
+            const feedback = {
+                text: transcriptItem.querySelector('.transcript-text').textContent,
+                isCorrect: isCorrect,
+                timestamp: transcriptItem.querySelector('.transcript-time').textContent,
+                speaker: transcriptItem.querySelector('.speaker-select').value
+            };
+            
+            // 피드백 데이터 저장
+            console.log('피드백:', feedback);
+            
+            // UI 업데이트
+            button.disabled = true;
+            button.style.opacity = '0.5';
+        }
+        
+        // 녹음 시작 시 화자 정보 초기화
+        recordBtn.addEventListener('click', async () => {
+            if (!isRecording) {
+                if (speakers.size === 0) {
+                    alert('최소 한 명의 화자를 추가해주세요.');
+                    return;
+                }
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    transcripts = [];
+                    transcriptList.innerHTML = '';
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        
+                        // 녹음 목록에 추가
+                        const recordingItem = document.createElement('div');
+                        recordingItem.className = 'recording-item';
+                        recordingItem.innerHTML = `
+                            <span>녹음 ${new Date().toLocaleTimeString()}</span>
+                            <button class="play-btn" onclick="playRecording('${audioUrl}')">재생</button>
+                            <button class="analyze-btn" onclick="analyzeRecording('${audioUrl}')">분석</button>
+                        `;
+                        recordings.prepend(recordingItem);
+                        
+                        playBtn.disabled = false;
+                        status.textContent = '녹음 완료';
+                        
+                        // 서버로 업로드
+                        const result = await uploadAudio(audioBlob);
+                        if (result) {
+                            status.textContent = '분석 완료';
+                            // 분석 결과 표시
+                            displayResults(result.results);
+                        }
+                    };
+                    
+                    mediaRecorder.start();
+                    recognition.start();
+                    isRecording = true;
+                    recordBtn.textContent = '녹음 중지';
+                    status.textContent = '녹음 중...';
+                } catch (error) {
+                    console.error('녹음 시작 실패:', error);
+                    status.textContent = '녹음 시작 실패';
+                }
+            } else {
+                mediaRecorder.stop();
+                recognition.stop();
+                isRecording = false;
+                recordBtn.textContent = '녹음 시작';
+            }
+        });
+        
+        // 녹취록 다운로드 시 화자 정보 포함
+        downloadBtn.addEventListener('click', () => {
+            const transcriptText = Array.from(document.querySelectorAll('.transcript-item')).map(item => {
+                const time = item.querySelector('.transcript-time').textContent;
+                const speaker = item.querySelector('.speaker-select').value || '미지정 화자';
+                const text = item.querySelector('.transcript-text').textContent;
+                const confidence = item.querySelector('.confidence').textContent;
+                return `[${time}] ${speaker} (${confidence})\n${text}\n`;
+            }).join('\n');
+            
+            const blob = new Blob([transcriptText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `녹취록_${new Date().toLocaleString().replace(/[/:]/g, '-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+        
+        function playRecording(audioUrl) {
+            const audio = new Audio(audioUrl);
+            audio.play();
+            status.textContent = '재생 중...';
+            audio.onended = () => {
+                status.textContent = '재생 완료';
+            };
+        }
+        
+        // 서버 통신을 위한 함수들
+        async function uploadAudio(audioBlob) {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.wav');
+            
+            try {
+                // Colab 서버 URL로 변경 (실제 URL은 Colab에서 생성된 URL로 대체)
+                const response = await fetch('COLAB_SERVER_URL/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error uploading audio:', error);
+                status.textContent = '업로드 실패';
+                return null;
+            }
+        }
+        
+        async function downloadResults(filename) {
+            try {
+                const response = await fetch(`http://localhost:5000/download/${filename}`);
+                if (!response.ok) {
+                    throw new Error('Download failed');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Error downloading results:', error);
+                status.textContent = '다운로드 실패';
+            }
+        }
+        
+        function displayResults(results) {
+            const transcriptList = document.getElementById('transcriptList');
+            transcriptList.innerHTML = '';
+            
+            results.forEach(result => {
+                const transcriptItem = document.createElement('div');
+                transcriptItem.className = 'transcript-item';
+                
+                // 신뢰도에 따른 표시기 색상 설정
+                let confidenceClass = 'confidence-low';
+                if (result.confidence > 0.8) confidenceClass = 'confidence-high';
+                else if (result.confidence > 0.6) confidenceClass = 'confidence-medium';
+                
+                transcriptItem.innerHTML = `
+                    <div class="transcript-header">
+                        <span class="transcript-time">${result.start_time.toFixed(2)}s - ${result.end_time.toFixed(2)}s</span>
+                        <span class="confidence-indicator ${confidenceClass}"></span>
+                        <span class="confidence">정확도: ${Math.round(result.confidence * 100)}%</span>
+                    </div>
+                    <div class="transcript-text">${result.text}</div>
+                    <select class="speaker-select">
+                        <option value="">화자 선택</option>
+                        ${Array.from(speakers).map(speaker => 
+                            `<option value="${speaker}">${speaker}</option>`
+                        ).join('')}
+                    </select>
+                    <div class="feedback-section">
+                        <div class="feedback-buttons">
+                            <button class="feedback-btn correct" onclick="provideFeedback(this, true)">정확함</button>
+                            <button class="feedback-btn incorrect" onclick="provideFeedback(this, false)">부정확함</button>
+                        </div>
+                    </div>
+                `;
+                
+                transcriptList.appendChild(transcriptItem);
+            });
+        }
+    </script>
+</body>
+</html> 

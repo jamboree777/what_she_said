@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="화자 분리 훈련 녹음기">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="화자 분리 훈련 녹음기">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>음성 분리 학습용 녹음기</title>
+  <link rel="manifest" href="manifest.json">
+
+  <script>
+    // The value below is injected by flutter build, do not touch.
+    const serviceWorkerVersion = null;
+  </script>
+  <!-- This script adds the flutter initialization JS code -->
+  <script src="flutter.js" defer></script>
+  <script src="audio_handler.js" defer></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    .loading-text {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .title {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .status {
+      text-align: center;
+      margin: 20px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .recordings {
+      margin-top: 20px;
+    }
+    .recording-item {
+      padding: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .recording-item.uncertain {
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+    }
+    .recording-item.needs-review {
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+    .confidence-indicator {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      margin-left: 10px;
+    }
+    .confidence-high {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .confidence-medium {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    .confidence-low {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .speaker-section {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+    }
+    .speaker-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .speaker-tag {
+      padding: 5px 10px;
+      background-color: #e9ecef;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .speaker-tag.selected {
+      background-color: #007bff;
+      color: white;
+    }
+    .transcript-section {
+      margin-top: 20px;
+    }
+    .transcript-item {
+      padding: 15px;
+      border: 1px solid #ddd;
+      margin-bottom: 10px;
+      border-radius: 5px;
+    }
+    .transcript-item.uncertain {
+      border-left: 4px solid #ffc107;
+    }
+    .transcript-item.needs-review {
+      border-left: 4px solid #dc3545;
+    }
+    .transcript-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .transcript-content {
+      margin: 10px 0;
+    }
+    .transcript-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: white;
+      margin: 15% auto;
+      padding: 20px;
+      border-radius: 5px;
+      width: 80%;
+      max-width: 500px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .close {
+      cursor: pointer;
+      font-size: 24px;
+    }
+    .feedback-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .feedback-button {
+      padding: 5px 10px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      background-color: white;
+      cursor: pointer;
+    }
+    .feedback-button:hover {
+      background-color: #f8f9fa;
+    }
+    .feedback-button.correct {
+      border-color: #28a745;
+      color: #28a745;
+    }
+    .feedback-button.incorrect {
+      border-color: #dc3545;
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading">
+    <img src="loading.gif" alt="로딩 중...">
+    <div class="loading-text">화자 분리 훈련 녹음기 로딩 중...</div>
+  </div>
+  <script>
+    window.addEventListener('load', function(ev) {
+      // Download main.dart.js
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: serviceWorkerVersion,
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
+  <div class="container">
+    <h1 class="title">음성 분리 학습용 녹음기</h1>
+    
+    <div class="speaker-section">
+      <h3>화자 관리</h3>
+      <div class="controls">
+        <input type="text" id="speakerName" placeholder="화자 이름">
+        <button onclick="addSpeaker()">화자 추가</button>
+      </div>
+      <div class="speaker-list" id="speakerList"></div>
+    </div>
+
+    <div class="controls">
+      <button id="recordButton">녹음 시작</button>
+      <button id="stopButton" disabled>녹음 중지</button>
+      <button id="playButton" disabled>재생</button>
+    </div>
+
+    <div class="status" id="status">준비됨</div>
+
+    <div class="transcript-section">
+      <h3>전사 결과</h3>
+      <div id="transcriptList"></div>
+    </div>
+
+    <div class="recordings">
+      <h3>녹음 목록</h3>
+      <div id="recordingsList"></div>
+    </div>
+  </div>
+
+  <!-- 새로운 화자 확인 모달 -->
+  <div id="newSpeakerModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>새로운 화자 감지</h3>
+        <span class="close">&times;</span>
+      </div>
+      <p>새로운 화자가 감지되었습니다. 이 화자의 이름을 입력해주세요.</p>
+      <input type="text" id="newSpeakerName" placeholder="화자 이름">
+      <button onclick="confirmNewSpeaker()">확인</button>
+    </div>
+  </div>
+
+  <!-- 전사 수정 모달 -->
+  <div id="editTranscriptModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>전사 수정</h3>
+        <span class="close">&times;</span>
+      </div>
+      <div id="audioPlayer"></div>
+      <textarea id="editTranscriptText" rows="4" style="width: 100%; margin: 10px 0;"></textarea>
+      <div class="feedback-buttons">
+        <button class="feedback-button correct" onclick="submitFeedback('correct')">정확함</button>
+        <button class="feedback-button incorrect" onclick="submitFeedback('incorrect')">부정확함</button>
+      </div>
+      <button onclick="saveTranscriptEdit()">저장</button>
+    </div>
+  </div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+    let currentSpeaker = null;
+    let speakers = new Set();
+    let currentRecording = null;
+    let uncertainSegments = [];
+
+    // 녹음 시작
+    document.getElementById('recordButton').onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          currentRecording = {
+            url: audioUrl,
+            timestamp: new Date().toISOString()
+          };
+          
+          // 서버로 전송
+          await uploadAudio(audioBlob);
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('recordButton').disabled = true;
+        document.getElementById('stopButton').disabled = false;
+        document.getElementById('status').textContent = '녹음 중...';
+      } catch (err) {
+        console.error('녹음 시작 실패:', err);
+        document.getElementById('status').textContent = '녹음 시작 실패';
+      }
+    };
+
+    // 녹음 중지
+    document.getElementById('stopButton').onclick = () => {
+      mediaRecorder.stop();
+      isRecording = false;
+      document.getElementById('recordButton').disabled = false;
+      document.getElementById('stopButton').disabled = true;
+      document.getElementById('playButton').disabled = false;
+      document.getElementById('status').textContent = '녹음 완료';
+    };
+
+    // 재생
+    document.getElementById('playButton').onclick = () => {
+      if (currentRecording) {
+        const audio = new Audio(currentRecording.url);
+        audio.play();
+      }
+    };
+
+    // 화자 추가
+    function addSpeaker() {
+      const speakerName = document.getElementById('speakerName').value.trim();
+      if (speakerName) {
+        speakers.add(speakerName);
+        updateSpeakerList();
+        document.getElementById('speakerName').value = '';
+      }
+    }
+
+    // 화자 목록 업데이트
+    function updateSpeakerList() {
+      const speakerList = document.getElementById('speakerList');
+      speakerList.innerHTML = '';
+      speakers.forEach(speaker => {
+        const speakerTag = document.createElement('div');
+        speakerTag.className = `speaker-tag ${speaker === currentSpeaker ? 'selected' : ''}`;
+        speakerTag.innerHTML = `
+          ${speaker}
+          <button onclick="removeSpeaker('${speaker}')" style="background: none; border: none; color: inherit; padding: 0 5px;">×</button>
+        `;
+        speakerTag.onclick = () => selectSpeaker(speaker);
+        speakerList.appendChild(speakerTag);
+      });
+    }
+
+    // 화자 선택
+    function selectSpeaker(speaker) {
+      currentSpeaker = speaker;
+      updateSpeakerList();
+    }
+
+    // 화자 제거
+    function removeSpeaker(speaker) {
+      speakers.delete(speaker);
+      if (currentSpeaker === speaker) {
+        currentSpeaker = null;
+      }
+      updateSpeakerList();
+    }
+
+    // 오디오 업로드
+    async function uploadAudio(audioBlob) {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.wav');
+
+      try {
+        const response = await fetch('http://localhost:5000/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (result.results) {
+          displayTranscripts(result.results);
+        }
+      } catch (err) {
+        console.error('업로드 실패:', err);
+        document.getElementById('status').textContent = '업로드 실패';
+      }
+    }
+
+    // 전사 결과 표시
+    function displayTranscripts(results) {
+      const transcriptList = document.getElementById('transcriptList');
+      transcriptList.innerHTML = '';
+
+      results.forEach((result, index) => {
+        const transcriptItem = document.createElement('div');
+        transcriptItem.className = `transcript-item ${result.needs_review ? 'needs-review' : ''} ${result.confidence < 0.7 ? 'uncertain' : ''}`;
+        
+        const confidenceClass = result.confidence >= 0.8 ? 'confidence-high' : 
+                              result.confidence >= 0.7 ? 'confidence-medium' : 
+                              'confidence-low';
+
+        transcriptItem.innerHTML = `
+          <div class="transcript-header">
+            <div>
+              <span class="speaker">${result.speaker}</span>
+              <span class="confidence-indicator ${confidenceClass}">
+                ${Math.round(result.confidence * 100)}%
+              </span>
+            </div>
+            <div class="timestamp">
+              ${formatTime(result.start_time)} - ${formatTime(result.end_time)}
+            </div>
+          </div>
+          <div class="transcript-content">
+            ${result.text}
+          </div>
+          <div class="transcript-actions">
+            <button onclick="playSegment(${index})">재생</button>
+            <button onclick="editTranscript(${index})">수정</button>
+          </div>
+        `;
+
+        transcriptList.appendChild(transcriptItem);
+      });
+    }
+
+    // 시간 포맷
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = Math.floor(seconds % 60);
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    // 세그먼트 재생
+    function playSegment(index) {
+      if (currentRecording) {
+        const audio = new Audio(currentRecording.url);
+        audio.currentTime = uncertainSegments[index].start_time;
+        audio.play();
+        setTimeout(() => {
+          audio.pause();
+        }, (uncertainSegments[index].end_time - uncertainSegments[index].start_time) * 1000);
+      }
+    }
+
+    // 전사 수정
+    function editTranscript(index) {
+      const modal = document.getElementById('editTranscriptModal');
+      const textarea = document.getElementById('editTranscriptText');
+      textarea.value = uncertainSegments[index].text;
+      modal.style.display = 'block';
+    }
+
+    // 피드백 제출
+    function submitFeedback(type) {
+      // 피드백 처리 로직
+      console.log(`피드백 제출: ${type}`);
+    }
+
+    // 전사 수정 저장
+    async function saveTranscriptEdit() {
+      const text = document.getElementById('editTranscriptText').value;
+      try {
+        const response = await fetch('http://localhost:5000/update_transcript', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const result = await response.json();
+        if (result.updated_text) {
+          // UI 업데이트
+          document.getElementById('editTranscriptModal').style.display = 'none';
+          // 전사 목록 새로고침
+          displayTranscripts(uncertainSegments);
+        }
+      } catch (err) {
+        console.error('전사 수정 실패:', err);
+      }
+    }
+
+    // 모달 닫기
+    document.querySelectorAll('.close').forEach(closeBtn => {
+      closeBtn.onclick = function() {
+        this.parentElement.parentElement.style.display = 'none';
+      }
+    });
+
+    // 새로운 화자 확인
+    function confirmNewSpeaker() {
+      const speakerName = document.getElementById('newSpeakerName').value.trim();
+      if (speakerName) {
+        speakers.add(speakerName);
+        updateSpeakerList();
+        document.getElementById('newSpeakerModal').style.display = 'none';
+        document.getElementById('newSpeakerName').value = '';
+      }
+    }
+  </script>
+</body>
+</html> 

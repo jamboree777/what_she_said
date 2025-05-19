@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>음성 분리 시스템</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .result-section {
+            margin-top: 20px;
+        }
+        .segment {
+            background-color: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .speaker {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .confidence-high {
+            color: #28a745;
+        }
+        .confidence-medium {
+            color: #ffc107;
+        }
+        .confidence-low {
+            color: #dc3545;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>음성 분리 시스템</h1>
+        
+        <div class="upload-section">
+            <h2>음성 파일 업로드</h2>
+            <input type="file" id="audioFile" accept="audio/*">
+            <button onclick="uploadFile()">업로드</button>
+        </div>
+
+        <div class="loading" id="loading">
+            처리 중... 잠시만 기다려주세요.
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <h2>처리 결과</h2>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('audioFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            
+            loading.style.display = 'block';
+            results.innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.segments);
+                } else {
+                    alert('처리 중 오류가 발생했습니다: ' + data.error);
+                }
+            } catch (error) {
+                alert('서버 연결 중 오류가 발생했습니다.');
+                console.error('Error:', error);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayResults(segments) {
+            const resultsDiv = document.getElementById('results');
+            
+            segments.forEach(segment => {
+                const confidence = segment.confidence || 0;
+                let confidenceClass = 'confidence-high';
+                
+                if (confidence < 0.7) {
+                    confidenceClass = 'confidence-medium';
+                }
+                if (confidence < 0.5) {
+                    confidenceClass = 'confidence-low';
+                }
+
+                const segmentDiv = document.createElement('div');
+                segmentDiv.className = 'segment';
+                segmentDiv.innerHTML = `
+                    <div class="speaker">화자 ${segment.speaker}</div>
+                    <div>${segment.text}</div>
+                    <div class="${confidenceClass}">
+                        신뢰도: ${(confidence * 100).toFixed(1)}%
+                    </div>
+                    <div>시간: ${segment.start.toFixed(2)}s - ${segment.end.toFixed(2)}s</div>
+                `;
+                
+                resultsDiv.appendChild(segmentDiv);
+            });
+        }
+    </script>
+</body>
+</html> 

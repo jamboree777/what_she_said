@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>음성 분리 시스템</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .results-section {
+            margin-top: 20px;
+        }
+        .speaker-segment {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        .speaker-segment.needs-review {
+            background-color: #fff3cd;
+        }
+        .confidence-high {
+            color: #28a745;
+        }
+        .confidence-medium {
+            color: #ffc107;
+        }
+        .confidence-low {
+            color: #dc3545;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .file-label:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>음성 분리 시스템</h1>
+        
+        <div class="upload-section">
+            <input type="file" id="audioFile" accept="audio/*" onchange="handleFileSelect(event)">
+            <label for="audioFile" class="file-label">음성 파일 선택</label>
+            <p id="fileName"></p>
+            <button onclick="uploadFile()" id="uploadButton" disabled>업로드</button>
+        </div>
+
+        <div class="results-section" id="results">
+            <!-- 결과가 여기에 표시됩니다 -->
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            document.getElementById('fileName').textContent = selectedFile ? selectedFile.name : '';
+            document.getElementById('uploadButton').disabled = !selectedFile;
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                displayResults(data.results);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('파일 업로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            results.forEach((result, index) => {
+                const segmentDiv = document.createElement('div');
+                segmentDiv.className = `speaker-segment ${result.needs_review ? 'needs-review' : ''}`;
+                
+                const confidenceClass = result.confidence > 0.8 ? 'confidence-high' : 
+                                      result.confidence > 0.6 ? 'confidence-medium' : 
+                                      'confidence-low';
+
+                segmentDiv.innerHTML = `
+                    <h3>화자 ${result.speaker}</h3>
+                    <p>시간: ${formatTime(result.start_time)} - ${formatTime(result.end_time)}</p>
+                    <p>텍스트: <span class="${confidenceClass}">${result.text}</span></p>
+                    ${result.needs_review ? '<p class="review-notice">검토 필요</p>' : ''}
+                    <button onclick="editSegment(${index})">수정</button>
+                `;
+
+                resultsDiv.appendChild(segmentDiv);
+            });
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function editSegment(index) {
+            // 수정 기능 구현
+            alert('수정 기능은 아직 구현 중입니다.');
+        }
+    </script>
+</body>
+</html> 
